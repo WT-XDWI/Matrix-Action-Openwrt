@@ -344,6 +344,12 @@ jobs:
         clean: ${{ contains(github.event.action, 'nocache') }}
         prefix: ${{ github.workspace }}/openwrt
 
+    # ⭐ 新增步骤：删除导致编译失败的 xray-core
+    - name: 删除导致编译失败的 xray-core
+      run: |
+        rm -rf openwrt/feeds/lunatic7/xray-core
+        echo "xray-core 已物理删除"
+
     - name: 编译固件
       id: compile
       working-directory: ./openwrt
