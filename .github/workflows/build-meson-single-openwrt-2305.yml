@@ -349,7 +349,8 @@ jobs:
       run: |
         rm -rf openwrt/feeds/lunatic7/xray-core
         rm -rf openwrt/feeds/lunatic7/v2ray-plugin
-        echo "已删除 xray-core 和 v2ray-plugin"
+        rm -rf openwrt/feeds/lunatic7/webd
+        echo "已删除 xray-core、v2ray-plugin、webd"
     - name: 编译固件
       id: compile
       working-directory: ./openwrt
