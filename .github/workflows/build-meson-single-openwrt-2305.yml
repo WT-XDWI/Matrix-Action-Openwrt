@@ -1,6 +1,5 @@
 name: Build 23.05.6 Single Burn
 
-# Fix for broken build: https://github.com/softprops/action-gh-release/issues/236
 permissions:
   contents: write
   actions: write
@@ -87,7 +86,9 @@ jobs:
   build:
     runs-on: Ubuntu-22.04
     needs: prepare
-    name: Build ws1508 openwrt 23.05
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    name: Build ${{ matrix.target }} openwrt 23.05
 
     steps:
     - name: 检查
@@ -131,7 +132,7 @@ jobs:
         echo "date3=$(date +'%m.%d')" >> $GITHUB_ENV
         VERSION="$(echo "${{github.event.action}}" | grep -Eo " [0-9.]+" | sed -e 's/ //')" || true
         [ "$VERSION" ] && echo "VERSION=$VERSION" >> $GITHUB_ENV || echo "VERSION=$(date +'%m.%d')" >> $GITHUB_ENV
-        echo ${{matrix.target}}
+        echo ${{ matrix.target }}
         source "${GITHUB_WORKSPACE}/env/common.txt"
         source "${GITHUB_WORKSPACE}/env/openwrt-23.05.repo"
         echo "REPO_URL=${REPO_URL}" >> $GITHUB_ENV
@@ -157,17 +158,17 @@ jobs:
         if [ ${{github.event.inputs.TEST-KERNEL}} = true ]; then
         $GITHUB_WORKSPACE/$DIY_SH add-test-config
         fi
-        if [ ${{matrix.target}} == 'meson-nft' ]; then
+        if [ ${{ matrix.target }} == 'meson-nft' ]; then
                 bash $GITHUB_WORKSPACE/add-test-packages.sh nft
-                echo "----${{matrix.target}}-----NFT-test---"
+                echo "----${{ matrix.target }}-----NFT-test---"
         fi
-        if [ ${{matrix.target}} == 'meson-nft' ]; then
-                mv -f machine-configs/single/${{github.event.inputs.MACH}}-nft.config machine-configs/${{matrix.target}}.config
-                echo "----${{matrix.target}}-----NFT-Machine--------"
+        if [ ${{ matrix.target }} == 'meson-nft' ]; then
+                mv -f machine-configs/single/${{github.event.inputs.MACH}}-nft.config machine-configs/${{ matrix.target }}.config
+                echo "----${{ matrix.target }}-----NFT-Machine--------"
         fi
-        if [ ${{matrix.target}} == 'meson-nft' ]; then
+        if [ ${{ matrix.target }} == 'meson-nft' ]; then
                 mv -f package-configs/single/${{github.event.inputs.MACH}}-nft.config package-configs/meson-nft-2305.config
-                echo "----${{matrix.target}}-----NFT-Package-Config----"
+                echo "----${{ matrix.target }}-----NFT-Package-Config----"
         fi
 
     - name: 克隆源代码
@@ -208,12 +209,12 @@ jobs:
         else
         [ -d openwrt-2305/target ] && mv -f openwrt-2305/target/linux/meson515 openwrt/target/linux/meson
         fi
-        [ -d openwrt-2305/mypatch-2305-${{matrix.target}} ] && mv -f openwrt-2305/mypatch-2305-${{matrix.target}} openwrt/mypatch
+        [ -d openwrt-2305/mypatch-2305-${{ matrix.target }} ] && mv -f openwrt-2305/mypatch-2305-${{ matrix.target }} openwrt/mypatch
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_SH patch-openwrt
-        if [ ${{matrix.target}} == 'meson-nft' ]; then
+        if [ ${{ matrix.target }} == 'meson-nft' ]; then
         curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
-        echo "----${{matrix.target}}-----NFT-acc----"
+        echo "----${{ matrix.target }}-----NFT-acc----"
         fi
         cd ../
         echo "status=success" >> $GITHUB_OUTPUT
@@ -249,20 +250,20 @@ jobs:
         [ -d openwrt-2305/feeds-package-patch-23056 ] && mv -f openwrt-2305/feeds-package-patch-23056 openwrt/feeds/packages/feeds-package-patch-2305
         [ -e files ] && mv files openwrt/files
         [ -e package-configs ] && mv package-configs openwrt/package-configs
-        [ -e machine-configs/${{matrix.target}}.config ] && mv -f machine-configs/${{matrix.target}}.config openwrt/package-configs/.config
+        [ -e machine-configs/${{ matrix.target }}.config ] && mv -f machine-configs/${{ matrix.target }}.config openwrt/package-configs/.config
         grep "meson8b" openwrt/package-configs/.config
         echo "------------------------"
         cd openwrt
         if [ ${{github.event.inputs.TEST-KERNEL}} = true ]; then
         $GITHUB_WORKSPACE/$DIY_SH patchtele
         fi
-        $GITHUB_WORKSPACE/$DIY_SH ${{matrix.target}}
+        $GITHUB_WORKSPACE/$DIY_SH ${{ matrix.target }}
         echo "--------diy----------------"
         grep "meson8b" .config
         make defconfig
         echo "--------before-rfc----------------"
         awk '/meson8b/ { print }' .config
-        $GITHUB_WORKSPACE/$DIY_SH_RFC ${{matrix.target}}
+        $GITHUB_WORKSPACE/$DIY_SH_RFC ${{ matrix.target }}
         echo "--------rfc----------------"
         awk '/meson8b/ { print }' .config
         echo "status=success" >> $GITHUB_OUTPUT
@@ -278,7 +279,7 @@ jobs:
         make defconfig
         $GITHUB_WORKSPACE/$DIY_SH_RFC kmod-meson
         make defconfig
-        $GITHUB_WORKSPACE/$DIY_SH_RFC ${{matrix.target}}
+        $GITHUB_WORKSPACE/$DIY_SH_RFC ${{ matrix.target }}
         awk '/meson8b/ { print }' .config
         echo "status=success" >> $GITHUB_OUTPUT
 
@@ -286,7 +287,7 @@ jobs:
       if: steps.config.outputs.status == 'success'
       working-directory: ./openwrt
       run: |
-        awk '/${{matrix.target}}/ { print }' .config
+        awk '/${{ matrix.target }}/ { print }' .config
         echo "------------------------"
         awk '/${{github.event.inputs.MACH}}/ { print }' .config
         awk '/meson/ { print }' .config
@@ -357,7 +358,7 @@ jobs:
       continue-on-error: true
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
-        name: ${{ env.VERSION }}_${{matrix.target}}
+        name: ${{ env.VERSION }}_${{ matrix.target }}
         path: |
           openwrt/bin/
 
@@ -405,11 +406,11 @@ jobs:
         cp -u -f openwrt/ipks.zip ipks
         mv -f openwrt/bin/targets/*/*/{*combined*,*ext4*,*sdk*,*imagebuilder*,*buildinfo*,*manifest*,*json*,*sha256sums*} ./firmware/ 2>/dev/null || true
         [ $UPLOAD_SYSUPGRADE = true ] && mv -f openwrt/bin/targets/*/*/{*sysupgrade*} ./firmware/ 2>/dev/null || true
-        cp openwrt/.config  ./firmware/${{matrix.target}}.config
-        cp openwrt/build_dir/target-*/linux-*/linux-*/.config ./firmware/${{matrix.target}}_kernel.config
+        cp openwrt/.config  ./firmware/${{ matrix.target }}.config
+        cp openwrt/build_dir/target-*/linux-*/linux-*/.config ./firmware/${{ matrix.target }}_kernel.config
         cd firmware
         echo "v${{ env.date2 }}" > version.txt
-        echo ${{matrix.target}} >> version.txt
+        echo ${{ matrix.target }} >> version.txt
         rm -rf sha256sums
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
@@ -419,7 +420,7 @@ jobs:
       continue-on-error: true
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true'
       with:
-        name: ${{ env.VERSION }}_${{matrix.target}}_firmware_23.05-${{github.event.inputs.MACH}}-${{ github.event.inputs.SETIP }}
+        name: ${{ env.VERSION }}_${{ matrix.target }}_firmware_23.05-${{github.event.inputs.MACH}}-${{ github.event.inputs.SETIP }}
         path: |
           firmware
 
@@ -428,7 +429,7 @@ jobs:
       continue-on-error: true
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_IPK_DIR == 'true' && steps.afb.outputs.status == 'success'
       with:
-        name: ${{ env.VERSION }}_${{matrix.target}}_ipks_23.05-${{github.event.inputs.MACH}}
+        name: ${{ env.VERSION }}_${{ matrix.target }}_ipks_23.05-${{github.event.inputs.MACH}}
         path: |
           ipks
 
@@ -468,8 +469,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         files: "${{ env.FIRMWARE }}/*"
-        name: ${{ env.date }} ${{matrix.target}}-${{github.event.inputs.MACH}}-openwrt-2305
-        tag_name: ${{ env.date }}_${{matrix.target}}-${{github.event.inputs.MACH}}-openwrt-2305
+        name: ${{ env.date }} ${{ matrix.target }}-${{github.event.inputs.MACH}}-openwrt-2305
+        tag_name: ${{ env.date }}_${{ matrix.target }}-${{github.event.inputs.MACH}}-openwrt-2305
         body_path: release.txt
 
     - name: 删除工作流
